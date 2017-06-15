@@ -11,21 +11,37 @@ const gulpLoadPlugins = require('gulp-load-plugins');
 const runSequence = require('run-sequence');
 const browserify = require('browserify');
 const ghpages = require('gh-pages');
+const source = require('vinyl-source-stream');
+const streamqueue = require('streamqueue');
+const vinylBuffer = require('vinyl-buffer');
 
-const compile = require('../gulp/compile');
-const config = require('../gulp/config');
+// Use uglify-es to get ES6 support.
+const uglifyEs = require('uglify-es');
+const composer = require('gulp-uglify/composer');
+const uglify = composer(uglifyEs, console);
+
+const ReportGenerator = require('../lighthouse-core/report/v2/report-generator.js');
 
 const $ = gulpLoadPlugins();
 
 function license() {
   return $.license('Apache', {
-    organization: 'Copyright 2017 Google Inc. All rights reserved.',
-    tiny: true
+    organization: 'Google Inc. All rights reserved.',
   });
 }
 
-gulp.task('compileReport', compile.compileReport);
-gulp.task('compilePartials', compile.compilePartials);
+/**
+ * Create a vinyl buffer stream from the given string. Supports optional fake
+ * filename for vinyl object.
+ * @param {string} content
+ * @param {string} fakeFileName
+ * @return {!Stream}
+ */
+function streamFromString(content, fakeFilename = 'fake.file') {
+  const stream = source(fakeFilename);
+  stream.end(content);
+  return stream.pipe(vinylBuffer());
+}
 
 gulp.task('lint', () => {
   return gulp.src([
@@ -40,25 +56,31 @@ gulp.task('lint', () => {
 
 gulp.task('images', () => {
   return gulp.src('app/images/**/*')
-  .pipe(gulp.dest(`${config.dist}/images`));
+  .pipe(gulp.dest(`dist/images`));
 });
 
 gulp.task('concat-css', () => {
-  return gulp.src([
-    '../lighthouse-core/report/styles/report.css',
-    '../lighthouse-core/report/partials/*.css',
-    'app/styles/viewer.css',
-  ])
-  .pipe($.concat('viewer.css'))
-  .pipe(gulp.dest(`${config.dist}/styles`));
+  const reportCss = streamFromString(ReportGenerator.reportCss, 'report-styles.css');
+  const viewerCss = gulp.src('app/styles/viewer.css');
+
+  return streamqueue({objectMode: true}, reportCss, viewerCss)
+    .pipe($.concat('viewer.css'))
+    .pipe(gulp.dest(`dist/styles`));
 });
 
 gulp.task('html', () => {
+  const templatesStr = ReportGenerator.reportTemplates;
+
+  return gulp.src('app/index.html')
+    .pipe($.replace(/%%LIGHTHOUSE_TEMPLATES%%/, _ => templatesStr))
+    .pipe(gulp.dest('dist'));
+});
+
+gulp.task('pwa', () => {
   return gulp.src([
-    'app/*.html',
     'app/sw.js',
-    'app/manifest.json'
-  ]).pipe(gulp.dest(config.dist));
+    'app/manifest.json',
+  ]).pipe(gulp.dest('dist'));
 });
 
 gulp.task('polyfills', () => {
@@ -66,92 +88,76 @@ gulp.task('polyfills', () => {
     'node_modules/url-search-params/build/url-search-params.js',
     'node_modules/whatwg-fetch/fetch.js'
   ])
-  .pipe(gulp.dest(`${config.dist}/src/polyfills`));
+  .pipe(gulp.dest(`dist/src/polyfills`));
 });
 
-gulp.task('browserify', () => {
-  return gulp.src([
-    'app/src/main.js'
-  ], {read: false})
-    .pipe($.tap(file => {
-      const bundle = browserify(file.path, {debug: false})
-        .plugin('tsify', { // Note: tsify needs to come before transforms.
-          allowJs: true,
-          target: 'es5',
-          diagnostics: true,
-          pretty: true,
-          removeComments: true
-        })
-        .transform('brfs')
-        .ignore('../lighthouse-logger/index.js')
-        .ignore('whatwg-url')
-        .ignore('url')
-        .ignore('debug/node')
-        .ignore('source-map')
-        .bundle();
+gulp.task('compile-js', () => {
+  const filename = __dirname + '/../lighthouse-core/report/v2/report-generator.js';
+  const opts = {debug: true, standalone: 'ReportGenerator'};
+  const generatorJs = browserify(filename, opts)
+    .transform('brfs')
+    .bundle()
+    .pipe(source('report-generator.js'))
+    .pipe(vinylBuffer());
 
-      file.contents = bundle; // Inject transformed content back the gulp pipeline.
-    }))
-    .pipe(gulp.dest(`${config.dist}/src`));
-});
+  const baseReportJs = streamFromString(ReportGenerator.reportJs, 'report.js');
 
-gulp.task('compile', ['browserify'], () => {
-  return gulp.src([`${config.dist}/src/main.js`])
-    .pipe($.uglify()) // minify.
-    .pipe(license())  // Add license to top.
-    .pipe(gulp.dest(`${config.dist}/src`));
+  const deps = gulp.src([
+    'node_modules/idb-keyval/dist/idb-keyval-min.js',
+  ]);
+
+  return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps)
+    .pipe($.concat('report.js', {newLine: ';\n'}))
+    .pipe(uglify())
+    .pipe(license())
+    .pipe(gulp.dest(`dist/src`));
 });
 
 gulp.task('clean', () => {
-  return del([config.dist]).then(paths =>
+  return del(['dist']).then(paths =>
     paths.forEach(path => $.util.log('deleted:', $.util.colors.blue(path)))
   );
 });
 
-gulp.task('watch', [
-  'lint',
-  'browserify',
-  'polyfills',
-  'html',
-  'images',
-  'concat-css',
-  'compileReport',
-  'compilePartials'], () => {
-    gulp.watch([
-      'app/styles/**/*.css',
-      '../lighthouse-core/report/styles/**/*.css',
-      '../lighthouse-core/report/partials/*.css'
-    ]).on('change', () => {
-      runSequence('concat-css');
-    });
+// gulp.task('watch', [
+//   'lint',
+//   'compile-js',
+//   'polyfills',
+//   'html',
+//   'pwa',
+//   'images',
+//   'concat-css'], () => {
+//     gulp.watch([
+//       'app/styles/**/*.css',
+//       '../lighthouse-core/report/styles/**/*.css',
+//       '../lighthouse-core/report/partials/*.css'
+//     ]).on('change', () => {
+//       runSequence('concat-css');
+//     });
 
-    gulp.watch([
-      'app/index.html',
-      'app/manifest.json',
-      'app/sw.js'
-    ]).on('change', () => {
-      runSequence('html');
-    });
+//     gulp.watch([
+//       'app/index.html',
+//       'app/manifest.json',
+//       'app/sw.js'
+//     ]).on('change', () => {
+//       runSequence('html');
+//     });
 
-    gulp.watch([
-      `../${config.report}`
-    ], ['compileReport']);
-
-    gulp.watch([
-      `../${config.partials}`
-    ], ['compilePartials']);
-  });
+//     gulp.watch([
+//       `../${config.report}`
+//     ], ['compileReport']);
+//   });
 
 gulp.task('create-dir-for-gh-pages', () => {
-  del.sync([`${config.dist}/viewer`]);
+  del.sync([`dist/viewer`]);
 
-  return gulp.src([`${config.dist}/**/*`])
-    .pipe(gulp.dest(`${config.dist}/viewer/viewer`));
+  return gulp.src(`dist/**/*`)
+    .pipe(gulp.dest(`dist/viewer/viewer`));
 });
 
 gulp.task('deploy', cb => {
-  runSequence('build', 'create-dir-for-gh-pages', function() {
-    ghpages.publish(`${config.dist}/viewer`, {
+  runSequence('clean', 'build', 'create-dir-for-gh-pages', function() {
+    ghpages.publish(`dist/viewer`, {
       logger: $.util.log
     }, err => {
       if (err) {
@@ -162,12 +168,10 @@ gulp.task('deploy', cb => {
   });
 });
 
-gulp.task('compile-templates', ['compileReport', 'compilePartials']);
-
 gulp.task('build', cb => {
   runSequence(
-    'lint', 'compile-templates', 'compile',
-    ['html', 'images', 'concat-css', 'polyfills'], cb);
+    'lint', 'compile-js',
+    ['html', 'pwa', 'images', 'concat-css', 'polyfills'], cb);
 });
 
 gulp.task('default', ['clean'], cb => {
