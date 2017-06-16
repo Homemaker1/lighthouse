@@ -279,7 +279,7 @@ class LighthouseReportViewer {
     }
   }
 
-  /*
+  /**
    * Initializes of a `message` listener to respond to postMessage events.
    * @private
    */

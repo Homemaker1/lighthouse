@@ -247,7 +247,7 @@ class ReportUIFeatures {
       }
     }.bind(this));
 
-    const popup = window.open(VIEWER_URL, '_blank');
+    const popup = /** @type {!Window} */ (window.open(VIEWER_URL, '_blank'));
   }
 
   /**
