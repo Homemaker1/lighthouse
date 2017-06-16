@@ -62,7 +62,7 @@ class Viewer {
   }
 
   /**
-   * Attempts to pull gist id from URL and render it.
+   * Attempts to pull gist id from URL and render report from it.
    * @return {!Promise<undefined>}
    * @private
    */
