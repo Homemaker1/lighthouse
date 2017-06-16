@@ -74,8 +74,8 @@ class LighthouseReportViewer {
     }
 
     return this._github.getGistFileContentAsJson(gistId).then(reportJson => {
-      this._replaceReportHtml(reportJson);
       this._reportIsFromGist = true;
+      this._replaceReportHtml(reportJson);
     }).catch(err => logger.error(err.message));
   }
 
@@ -117,12 +117,16 @@ class LighthouseReportViewer {
     dom.resetTemplates(); // TODO(bckenny): hack
     const detailsRenderer = new DetailsRenderer(dom);
     const categoryRenderer = new CategoryRenderer(dom, detailsRenderer);
-    const features = new ViewerUiFeatures(dom, this._onSaveJson);
-    const renderer = new ReportRenderer(dom, categoryRenderer, features);
+    const renderer = new ReportRenderer(dom, categoryRenderer);
 
     const container = document.querySelector('main');
     try {
       renderer.renderReport(json, container);
+
+      // Only offer save callback if current report isn't from a gist.
+      const saveCallback = this._reportIsFromGist ? null : this._onSaveJson;
+      const features = new ViewerUiFeatures(dom, saveCallback);
+      features.initFeatures(json);
     } catch(e) {
       logger.error(`Error rendering report: ${e.message}`);
       container.textContent = '';
@@ -225,8 +229,8 @@ class LighthouseReportViewer {
     // Try paste as json content.
     try {
       const json = JSON.parse(e.clipboardData.getData('text'));
-      this.replaceReportHTML(json);
       this._reportIsFromGist = false;
+      this.replaceReportHTML(json);
 
       if (window.ga) {
         window.ga('send', 'event', 'report', 'paste');

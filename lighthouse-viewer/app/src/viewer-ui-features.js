@@ -7,6 +7,10 @@
 
 /* global ReportUIFeatures, ReportGenerator */
 
+/**
+ * Extends ReportUIFeatures to add an (optional) ability to save to a gist and
+ * generates the saved report from a browserified ReportGenerator.
+ */
 class ViewerUiFeatures extends ReportUIFeatures {
   /**
    * @param {!DOM} dom
@@ -16,6 +20,20 @@ class ViewerUiFeatures extends ReportUIFeatures {
     super(dom);
 
     this._saveGistCallback = saveGistCallback;
+  }
+
+  /**
+   * @param {!ReportRenderer.ReportJSON} report
+   * @override
+   */
+  initFeatures(report) {
+    super.initFeatures(report);
+
+    // Disable option to save as gist if no callback for saving.
+    if (!this._saveGistCallback) {
+      const saveGistItem = this._dom.find('.lh-export--gist', this._document);
+      saveGistItem.setAttribute('disabled', true);
+    }
   }
 
   /**
@@ -39,6 +57,10 @@ class ViewerUiFeatures extends ReportUIFeatures {
    */
   saveAsGist() {
     this._saveGistCallback(this.json);
+
+    // Disable save-as-gist option after saving.
+    const saveGistItem = this._dom.find('.lh-export--gist', this._document);
+    saveGistItem.setAttribute('disabled', true);
   }
 }
 
