@@ -110,8 +110,9 @@ gulp.task('compile-js', () => {
   const viewer = gulp.src([
     'app/src/firebase-auth.js',
     'app/src/github-api.js',
-    'app/src/viewer.js',
-    'app/src/drag-and-drop.js'
+    'app/src/drag-and-drop.js',
+    'app/src/viewer-ui-features.js',
+    'app/src/viewer.js'
   ]);
 
   return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps, viewer)

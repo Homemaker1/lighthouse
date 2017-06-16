@@ -5,7 +5,7 @@
  */
 'use strict';
 
-/* global DOM, CategoryRenderer, DetailsRenderer, ReportUIFeatures, ReportRenderer, DragAndDrop, GithubApi */
+/* global DOM, CategoryRenderer, DetailsRenderer, ViewerUiFeatures, ReportRenderer, DragAndDrop, GithubApi */
 
 /**
  * Class that manages viewing Lighthouse reports.
@@ -13,7 +13,7 @@
 class Viewer {
   constructor() {
     this._onPaste = this._onPaste.bind(this);
-    // this._onShare = this._onShare.bind(this);
+    this._onSaveJson = this._onSaveJson.bind(this);
     this._onFileLoad = this._onFileLoad.bind(this);
     this._onUrlInputChange = this._onUrlInputChange.bind(this);
 
@@ -28,7 +28,7 @@ class Viewer {
 
     this._addEventListeners();
     this._loadFromDeepLink();
-    // this._listenForMessages();
+    this._listenForMessages();
   }
 
   static get APP_URL() {
@@ -40,18 +40,6 @@ class Viewer {
    * @private
    */
   _addEventListeners() {
-    // TODO(bckenny): reaches into report
-    // this.shareButton = document.querySelector('.js-share');
-    // this.shareButton.addEventListener('click', this._onShare);
-
-    // // Disable the share button after the user shares the gist or if we're loading
-    // // a gist from GitHub. In both cases, the gist is already shared :)
-    // if (this._isNewReport) {
-    //   this.enableButton(this.shareButton);
-    // } else {
-    //   this.disableButton(this.shareButton);
-    // }
-
     document.addEventListener('paste', this._onPaste);
 
     const gistUrlInput = document.querySelector('.js-gist-url');
@@ -132,7 +120,7 @@ class Viewer {
     dom.resetTemplates(); // TODO(bckenny): hack
     const detailsRenderer = new DetailsRenderer(dom);
     const categoryRenderer = new CategoryRenderer(dom, detailsRenderer);
-    const features = new ReportUIFeatures(dom);
+    const features = new ViewerUiFeatures(dom, this._onSaveJson);
     const renderer = new ReportRenderer(dom, categoryRenderer, features);
 
     const container = document.querySelector('main');
@@ -143,9 +131,6 @@ class Viewer {
       container.textContent = '';
       throw e;
     }
-
-    // TODO(bckenny): do we really want this? kind of a repeat of ui-features
-    this.json = json;
 
     // Remove the placeholder UI once the user has loaded a report.
     const placeholder = document.querySelector('.viewer-placeholder');
@@ -196,24 +181,30 @@ class Viewer {
     });
   }
 
-  // /**
-  //  * Shares the current report by creating a gist on GitHub.
-  //  * @return {!Promise<string>} id of the created gist.
-  //  * @private
-  //  */
-  // _onShare() {
-  //   ga('send', 'event', 'report', 'share');
+  /**
+   * Saves the current report by creating a gist on GitHub.
+   * @param {!ReportRenderer.ReportJSON} reportJson
+   * @return {!Promise<string>} id of the created gist.
+   * @private
+   */
+  _onSaveJson(reportJson) {
+    // TODO(bckenny):
+    // ga('send', 'event', 'report', 'share');
 
-  //   // TODO: find and reuse existing json gist if one exists.
-  //   return this.github.createGist(this.json).then(id => {
-  //     ga('send', 'event', 'report', 'created');
+    // TODO: find and reuse existing json gist if one exists.
+    return this._github.createGist(reportJson).then(id => {
+      // TODO(bckenny):
+      // ga('send', 'event', 'report', 'created');
 
-  //     this.disableButton(this.shareButton);
-  //     history.pushState({}, null, `${APP_URL}?gist=${id}`);
+      // TODO(bckenny): handle inside viewer-ui-features?
+      this._reportIsFromGist = true;
+      // TODO(bckenny):
+      // this.disableButton(this.shareButton);
+      history.pushState({}, null, `${Viewer.APP_URL}?gist=${id}`);
 
-  //     return id;
-  //   }).catch(err => logger.log(err.message));
-  // }
+      return id;
+    }).catch(err => logger.log(err.message));
+  }
 
   /**
    * Enables pasting a JSON report or gist URL on the page.
@@ -289,23 +280,25 @@ class Viewer {
     }
   }
 
-  // /*
-  //  * Initializes of a `message` listener to respond to postMessage events.
-  //  * @private
-  //  */
-  // _listenForMessages() {
-  //   window.addEventListener('message', e => {
-  //     if (e.source === self.opener && e.data.lhresults) {
-  //       this.replaceReportHTML(e.data.lhresults);
-  //       ga('send', 'event', 'report', 'open in viewer');
-  //     }
-  //   });
+  /*
+   * Initializes of a `message` listener to respond to postMessage events.
+   * @private
+   */
+  _listenForMessages() {
+    window.addEventListener('message', e => {
+      if (e.source === self.opener && e.data.lhresults) {
+        this._reportIsFromGist = false;
+        this._replaceReportHtml(e.data.lhresults);
+        // TODO(bckenny):
+        // ga('send', 'event', 'report', 'open in viewer');
+      }
+    });
 
-  //   // If the page was opened as a popup, tell the opening window we're ready.
-  //   if (self.opener && !self.opener.closed) {
-  //     self.opener.postMessage({opened: true}, '*');
-  //   }
-  // }
+    // If the page was opened as a popup, tell the opening window we're ready.
+    if (self.opener && !self.opener.closed) {
+      self.opener.postMessage({opened: true}, '*');
+    }
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
