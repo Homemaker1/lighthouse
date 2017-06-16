@@ -93,7 +93,7 @@ gulp.task('polyfills', () => {
 
 gulp.task('compile-js', () => {
   const filename = __dirname + '/../lighthouse-core/report/v2/report-generator.js';
-  const opts = {debug: true, standalone: 'ReportGenerator'};
+  const opts = {standalone: 'ReportGenerator'};
   const generatorJs = browserify(filename, opts)
     .transform('brfs')
     .bundle()
@@ -106,9 +106,17 @@ gulp.task('compile-js', () => {
     'node_modules/idb-keyval/dist/idb-keyval-min.js',
   ]);
 
-  return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps)
-    .pipe($.concat('report.js', {newLine: ';\n'}))
-    .pipe(uglify())
+  // TODO(bckenny): can become glob
+  const viewer = gulp.src([
+    'app/src/firebase-auth.js',
+    'app/src/github-api.js',
+    'app/src/viewer.js',
+    'app/src/drag-and-drop.js'
+  ]);
+
+  return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps, viewer)
+    .pipe($.concat('viewer.js', {newLine: ';\n'}))
+    // .pipe(uglify())
     .pipe(license())
     .pipe(gulp.dest(`dist/src`));
 });
@@ -170,7 +178,7 @@ gulp.task('deploy', cb => {
 
 gulp.task('build', cb => {
   runSequence(
-    'lint', 'compile-js',
+    'compile-js',
     ['html', 'pwa', 'images', 'concat-css', 'polyfills'], cb);
 });
 
