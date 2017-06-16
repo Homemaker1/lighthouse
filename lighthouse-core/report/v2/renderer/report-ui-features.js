@@ -20,9 +20,9 @@ class ReportUIFeatures {
   constructor(dom) {
     /** @type {!ReportRenderer.ReportJSON} */
     this.json; // eslint-disable-line no-unused-expressions
-    /** @private {!DOM} */
+    /** @protected {!DOM} */
     this._dom = dom;
-    /** @private {!Document} */
+    /** @protected {!Document} */
     this._document = this._dom.document();
     /** @private {boolean} */
     this._copyAttempt = false;

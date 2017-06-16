@@ -19,6 +19,7 @@ class ViewerUiFeatures extends ReportUIFeatures {
   constructor(dom, saveGistCallback) {
     super(dom);
 
+    /** @private {?function(!ReportRenderer.ReportJSON)} */
     this._saveGistCallback = saveGistCallback;
   }
 
@@ -56,7 +57,11 @@ class ViewerUiFeatures extends ReportUIFeatures {
    * @override
    */
   saveAsGist() {
-    this._saveGistCallback(this.json);
+    if (this._saveGistCallback) {
+      this._saveGistCallback(this.json);
+    } else {
+      throw new Error('Cannot save gist from gist');
+    }
 
     // Disable save-as-gist option after saving.
     const saveGistItem = this._dom.find('.lh-export--gist', this._document);
