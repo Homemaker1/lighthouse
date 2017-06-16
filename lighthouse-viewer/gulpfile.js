@@ -21,6 +21,7 @@ const composer = require('gulp-uglify/composer');
 const uglify = composer(uglifyEs, console);
 
 const ReportGenerator = require('../lighthouse-core/report/v2/report-generator.js');
+const lighthousePackage = require('../package.json');
 
 const $ = gulpLoadPlugins();
 
@@ -106,18 +107,13 @@ gulp.task('compile-js', () => {
     'node_modules/idb-keyval/dist/idb-keyval-min.js',
   ]);
 
-  // TODO(bckenny): can become glob
-  const viewer = gulp.src([
-    'app/src/firebase-auth.js',
-    'app/src/github-api.js',
-    'app/src/drag-and-drop.js',
-    'app/src/viewer-ui-features.js',
-    'app/src/lighthouse-report-viewer.js'
-  ]);
+  const versionStr = `window.LH_CURRENT_VERSION = '${lighthousePackage.version}';`;
+  const versionJs = streamFromString(versionStr, 'report.js');
+  const viewer = streamqueue({objectMode: true}, versionJs, gulp.src('app/src/*.js'));
 
   return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps, viewer)
     .pipe($.concat('viewer.js', {newLine: ';\n'}))
-    // .pipe(uglify())
+    .pipe(uglify())
     .pipe(license())
     .pipe(gulp.dest(`dist/src`));
 });

@@ -7,8 +7,6 @@
 
 /* global firebase, idbKeyval */
 
-// TODO(bckenny): Object => firebase externs?
-
 /**
  * Wrapper for Firebase authentication.
  */

@@ -7,8 +7,6 @@
 
 /* global logger, FirebaseAuth, idbKeyval, getFilenamePrefix */
 
-// TODO(bckenny): logger
-
 /**
  * Wrapper around the GitHub API for reading/writing gists.
  */
