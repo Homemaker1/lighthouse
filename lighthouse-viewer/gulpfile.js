@@ -124,34 +124,35 @@ gulp.task('clean', () => {
   );
 });
 
-// gulp.task('watch', [
-//   'lint',
-//   'compile-js',
-//   'polyfills',
-//   'html',
-//   'pwa',
-//   'images',
-//   'concat-css'], () => {
-//     gulp.watch([
-//       'app/styles/**/*.css',
-//       '../lighthouse-core/report/styles/**/*.css',
-//       '../lighthouse-core/report/partials/*.css'
-//     ]).on('change', () => {
-//       runSequence('concat-css');
-//     });
+gulp.task('watch', ['build'], () => {
+  gulp.watch([
+    'app/styles/**/*.css',
+    '../lighthouse-core/report/v2/**/*.css',
+  ]).on('change', () => {
+    runSequence('concat-css');
+  });
 
-//     gulp.watch([
-//       'app/index.html',
-//       'app/manifest.json',
-//       'app/sw.js'
-//     ]).on('change', () => {
-//       runSequence('html');
-//     });
+  gulp.watch([
+    'app/index.html',
+    '../lighthouse-core/report/v2/templates.html',
+  ]).on('change', () => {
+    runSequence('html');
+  });
 
-//     gulp.watch([
-//       `../${config.report}`
-//     ], ['compileReport']);
-//   });
+  gulp.watch([
+    'app/manifest.json',
+    'app/sw.js'
+  ]).on('change', () => {
+    runSequence('pwa');
+  });
+
+  gulp.watch([
+    '../lighthouse-core/report/v2/report-generator.js',
+    'app/src/*.js'
+  ]).on('change', () => {
+    runSequence('compile-js');
+  });
+});
 
 gulp.task('create-dir-for-gh-pages', () => {
   del.sync([`dist/viewer`]);
@@ -175,7 +176,7 @@ gulp.task('deploy', cb => {
 
 gulp.task('build', cb => {
   runSequence(
-    'compile-js',
+    'lint', 'compile-js',
     ['html', 'pwa', 'images', 'concat-css', 'polyfills'], cb);
 });
 

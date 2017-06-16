@@ -114,7 +114,6 @@ class LighthouseReportViewer {
     this._validateReportJson(json);
 
     const dom = new DOM(document);
-    dom.resetTemplates(); // TODO(bckenny): hack
     const detailsRenderer = new DetailsRenderer(dom);
     const categoryRenderer = new CategoryRenderer(dom, detailsRenderer);
     const renderer = new ReportRenderer(dom, categoryRenderer);
@@ -129,6 +128,7 @@ class LighthouseReportViewer {
       features.initFeatures(json);
     } catch(e) {
       logger.error(`Error rendering report: ${e.message}`);
+      dom.resetTemplates(); // TODO(bckenny): hack
       container.textContent = '';
       throw e;
     }
