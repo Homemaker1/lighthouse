@@ -112,7 +112,7 @@ gulp.task('compile-js', () => {
     'app/src/github-api.js',
     'app/src/drag-and-drop.js',
     'app/src/viewer-ui-features.js',
-    'app/src/viewer.js'
+    'app/src/lighthouse-report-viewer.js'
   ]);
 
   return streamqueue({objectMode: true}, generatorJs, baseReportJs, deps, viewer)

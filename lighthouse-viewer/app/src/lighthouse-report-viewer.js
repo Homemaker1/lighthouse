@@ -10,7 +10,7 @@
 /**
  * Class that manages viewing Lighthouse reports.
  */
-class Viewer {
+class LighthouseViewerReport {
   constructor() {
     this._onPaste = this._onPaste.bind(this);
     this._onSaveJson = this._onSaveJson.bind(this);
@@ -200,7 +200,7 @@ class Viewer {
       this._reportIsFromGist = true;
       // TODO(bckenny):
       // this.disableButton(this.shareButton);
-      history.pushState({}, null, `${Viewer.APP_URL}?gist=${id}`);
+      history.pushState({}, null, `${LighthouseViewerReport.APP_URL}?gist=${id}`);
 
       return id;
     }).catch(err => logger.log(err.message));
@@ -272,7 +272,7 @@ class Viewer {
 
       const match = url.pathname.match(/[a-f0-9]{5,}/);
       if (match) {
-        history.pushState({}, null, `${Viewer.APP_URL}?gist=${match[0]}`);
+        history.pushState({}, null, `${LighthouseViewerReport.APP_URL}?gist=${match[0]}`);
         this._loadFromDeepLink();
       }
     } catch (err) {
