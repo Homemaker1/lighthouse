@@ -112,7 +112,7 @@
 
 /* app z-indexes */
 .drop_zone {
-  z-index: 2;
+  z-index: 3;
 }
 
 /* open-in-viewer option hidden in Viewer */

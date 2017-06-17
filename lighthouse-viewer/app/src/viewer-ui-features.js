@@ -60,7 +60,8 @@ class ViewerUiFeatures extends ReportUIFeatures {
     if (this._saveGistCallback) {
       this._saveGistCallback(this.json);
     } else {
-      throw new Error('Cannot save gist from gist');
+      // UI should prevent this from being called with no callback, but throw to be sure.
+      throw new Error('Cannot save this report as a gist');
     }
 
     // Disable save-as-gist option after saving.

@@ -122,8 +122,14 @@ class LighthouseReportViewer {
     try {
       renderer.renderReport(json, container);
 
-      // Only offer save callback if current report isn't from a gist.
-      const saveCallback = this._reportIsFromGist ? null : this._onSaveJson;
+      // Only give gist-saving callback (and clear gist from query string) if
+      // current report isn't from a gist.
+      let saveCallback = null;
+      if (!this._reportIsFromGist) {
+        saveCallback = this._onSaveJson;
+        history.pushState({}, null, LighthouseReportViewer.APP_URL);
+      }
+
       const features = new ViewerUiFeatures(dom, saveCallback);
       features.initFeatures(json);
     } catch(e) {
@@ -230,7 +236,7 @@ class LighthouseReportViewer {
     try {
       const json = JSON.parse(e.clipboardData.getData('text'));
       this._reportIsFromGist = false;
-      this.replaceReportHTML(json);
+      this._replaceReportHTML(json);
 
       if (window.ga) {
         window.ga('send', 'event', 'report', 'paste');
