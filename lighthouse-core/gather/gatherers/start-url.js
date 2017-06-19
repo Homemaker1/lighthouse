@@ -7,7 +7,6 @@
 
 const Gatherer = require('./gatherer');
 const URL = require('../../lib/url-shim');
-const createExpectedError = require('../../lib/expected-error');
 const manifestParser = require('../../lib/manifest-parser');
 
 class StartUrl extends Gatherer {
@@ -50,26 +49,29 @@ class StartUrl extends Gatherer {
   pass(options) {
     return options.driver.getAppManifest()
       .then(response => {
-        return manifestParser(response.data, response.url, options.url);
+        return response && manifestParser(response.data, response.url, options.url);
       })
       .then(manifest => {
-        if (!manifest.value.start_url || !manifest.value.start_url.raw) {
-          const error = new Error(`No web app manifest found on page ${options.url}`);
-          return Promise.reject(createExpectedError(error));
+        if (!manifest || !manifest.value.start_url || !manifest.value.start_url.raw) {
+          throw new Error(`No web app manifest found on page ${options.url}`);
         }
 
         if (manifest.value.start_url.debugString) {
-          return Promise.reject(new Error(manifest.value.start_url.debugString));
+          throw new Error(manifest.value.start_url.debugString);
         }
 
         this.startUrl = manifest.value.start_url.value;
-      }).then(_ => this.executeFetchRequest(options.driver, this.startUrl));
+      })
+      .then(_ => this.executeFetchRequest(options.driver, this.startUrl))
+      .catch(err => {
+        this.debugString = err.message;
+      });
   }
 
   afterPass(options, tracingData) {
-    if (!this.startUrl) {
-      const error = new Error('No start_url found inside the manifest');
-      return Promise.reject(createExpectedError(error));
+    if (this.debugString || !this.startUrl) {
+      const debugString = this.debugString || 'No start_url found inside the manifest';
+      return Promise.resolve({debugString});
     }
 
     const networkRecords = tracingData.networkRecords;
@@ -79,7 +81,9 @@ class StartUrl extends Gatherer {
     }).pop(); // Take the last record that matches.
 
     return options.driver.goOnline(options)
-      .then(_ => navigationRecord ? navigationRecord.statusCode : -1);
+      .then(_ => {
+        return {statusCode: navigationRecord ? navigationRecord.statusCode : -1};
+      });
   }
 }
 

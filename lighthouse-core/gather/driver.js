@@ -10,7 +10,6 @@ const emulation = require('../lib/emulation');
 const Element = require('../lib/element');
 const EventEmitter = require('events').EventEmitter;
 const URL = require('../lib/url-shim');
-const createExpectedError = require('../lib/expected-error');
 
 const log = require('../lib/log.js');
 const DevtoolsLog = require('./devtools-log');
@@ -277,7 +276,7 @@ class Driver {
             }
 
             // If both the data and the url are empty strings, the page had no manifest.
-            return reject(createExpectedError(new Error('No web app manifest found.')));
+            return resolve(null);
           }
 
           resolve(response);

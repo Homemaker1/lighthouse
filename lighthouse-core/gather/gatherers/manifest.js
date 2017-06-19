@@ -25,14 +25,7 @@ class Manifest extends Gatherer {
   afterPass(options) {
     return options.driver.getAppManifest()
       .then(response => {
-        return manifestParser(response.data, response.url, options.url);
-      })
-      .catch(err => {
-        if (err.message === 'No web app manifest found.') {
-          return null;
-        }
-
-        return Promise.reject(err);
+        return response && manifestParser(response.data, response.url, options.url);
       });
   }
 }

@@ -90,8 +90,8 @@ describe('Start-url gatherer', () => {
       startUrlGathererWithQueryString.pass(optionsWithQueryString)
         .then(_ => startUrlGathererWithQueryString.afterPass(optionsWithQueryString, tracingData))
     ]).then(([artifact, artifactWithQueryString]) => {
-      assert.strictEqual(artifact, -1);
-      assert.strictEqual(artifactWithQueryString, -1);
+      assert.deepEqual(artifact, {statusCode: -1});
+      assert.deepEqual(artifactWithQueryString, {statusCode: -1});
     });
   });
 
@@ -113,12 +113,12 @@ describe('Start-url gatherer', () => {
       startUrlGathererWithFragment.pass(optionsWithQueryString)
         .then(_ => startUrlGathererWithFragment.afterPass(optionsWithQueryString, tracingData))
     ]).then(([artifact, artifactWithFragment]) => {
-      assert.strictEqual(artifact, 200);
-      assert.strictEqual(artifactWithFragment, 200);
+      assert.deepEqual(artifact, {statusCode: 200});
+      assert.deepEqual(artifactWithFragment, {statusCode: 200});
     });
   });
 
-  it('returns an error when manifest cannot be found', () => {
+  it('returns a debugString when manifest cannot be found', () => {
     const startUrlGatherer = new StartUrlGatherer();
     const options = {
       url: 'https://ifixit-pwa.appspot.com/',
@@ -127,11 +127,8 @@ describe('Start-url gatherer', () => {
 
     startUrlGatherer.pass(options)
       .then(_ => startUrlGatherer.afterPass(options, tracingData))
-      .then(_ => {
-        assert.ok(false, 'should fail because manifest is empty');
-      })
-      .catch(err => {
-        assert.strictEqual(err.message, `No web app manifest found on page ${options.url}`);
+      .then(artifact => {
+        assert.equal(artifact.debugString, `No web app manifest found on page ${options.url}`);
       });
   });
 
@@ -144,11 +141,8 @@ describe('Start-url gatherer', () => {
 
     startUrlGatherer.pass(options)
       .then(_ => startUrlGatherer.afterPass(options, tracingData))
-      .then(_ => {
-        assert.ok(false, 'should fail because origin is not the same');
-      })
-      .catch(err => {
-        assert.strictEqual(err.message, 'ERROR: start_url must be same-origin as document');
+      .then(artifact => {
+        assert.equal(artifact.debugString, 'ERROR: start_url must be same-origin as document');
       });
   });
 });
