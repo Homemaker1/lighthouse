@@ -159,7 +159,9 @@ class Runner {
         };
       })
       .catch(err => {
-        return Sentry.captureException(err).then(() => { throw err; });
+        return Sentry.captureException(err).then(() => {
+          throw err;
+        });
       });
 
     return run;

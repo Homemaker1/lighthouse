@@ -1,10 +1,17 @@
+/**
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ */
+'use strict';
+
 const log = require('./log');
 
 // eslint-disable-next-line max-len
 const SENTRY_URL = 'https://a6bb0da87ee048cc9ae2a345fc09ab2e:63a7029f46f74265981b7e005e0f69f8@sentry.io/174697';
 
 // Fix the polyfill. See https://github.com/GoogleChrome/lighthouse/issues/73
-self.setImmediate = function(callback, ...argsForCallback) {
+global.setImmediate = function(callback, ...argsForCallback) {
   Promise.resolve().then(() => callback(...argsForCallback));
   return 0;
 };
