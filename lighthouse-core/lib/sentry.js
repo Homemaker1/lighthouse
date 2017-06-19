@@ -9,7 +9,7 @@ self.setImmediate = function(callback, ...argsForCallback) {
   return 0;
 };
 
-const noop = () => undefined;
+const noop = () => Promise.resolve();
 const sentryApi = {
   captureMessage: noop,
   captureException: noop,
@@ -23,33 +23,46 @@ const sentryApi = {
  * noop functions and environments with error reporting will call the actual Sentry methods.
  */
 const sentryDelegate = Object.assign({}, sentryApi);
-sentryDelegate.init = function init(useSentry, config) {
-  if (!useSentry) {
+sentryDelegate.init = function init(opts) {
+  if (!opts.flags.enableErrorReporting) {
     // If error reporting is disabled, leave the functions as a noop
     return;
   }
 
-  config = Object.assign({}, config, {allowSecretKey: true});
+  const environmentData = opts.environmentData || {};
+  const sentryConfig = Object.assign({}, environmentData, {allowSecretKey: true});
 
   try {
     const Sentry = require('raven');
-    Sentry.config(SENTRY_URL, config).install();
+    Sentry.config(SENTRY_URL, sentryConfig).install();
     Object.keys(sentryApi).forEach(functionName => {
       // Have each delegate function call the corresponding sentry function by default
       sentryDelegate[functionName] = (...args) => Sentry[functionName](...args);
-
-      // Special case captureException to skip reporting if the error was expected
-      sentryDelegate.captureException = (...args) => {
-        if (args[0] && args[0].expected) return;
-        Sentry.captureException(...args);
-      };
     });
+
+    // Special case captureException to skip reporting if the error was expected
+    sentryDelegate.captureException = (...args) => {
+      if (args[0] && args[0].expected) return Promise.resolve();
+      return new Promise(resolve => {
+        Sentry.captureException(...args, () => resolve());
+      });
+    };
   } catch (e) {
     log.warn(
       'sentry',
       'Could not load raven library, errors will not be reported.'
     );
   }
+
+  const context = {
+    url: opts.url,
+    deviceEmulation: !opts.flags.disableDeviceEmulation,
+    networkThrottling: !opts.flags.disableNetworkThrottling,
+    cpuThrottling: !opts.flags.disableCpuThrottling,
+  };
+
+  sentryDelegate.mergeContext({extra: Object.assign({}, environmentData.extra, context)});
+  return context;
 };
 
 module.exports = sentryDelegate;
