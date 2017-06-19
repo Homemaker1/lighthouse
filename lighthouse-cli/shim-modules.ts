@@ -53,4 +53,4 @@ try {
   }
 }
 
-export { opn, updateNotifier, inquirer, Configstore };
+export {opn, updateNotifier, inquirer, Configstore};

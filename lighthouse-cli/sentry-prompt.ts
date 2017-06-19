@@ -1,6 +1,8 @@
 import {existsSync} from 'fs';
 import {join as joinPath} from 'path';
-import {inquirer, Configstore} from './shim-modules';
+
+import {Configstore, inquirer} from './shim-modules';
+
 const log = require('../lighthouse-core/lib/log');
 
 const MAXIMUM_WAIT_TIME = 20 * 1000;
@@ -33,10 +35,7 @@ async function prompt() {
     timeout = setTimeout(() => {
       prompt.ui.close();
       process.stdout.write('\n');
-      log.warn(
-        'CLI',
-        'No response to error logging preference, errors will not be reported.'
-      );
+      log.warn('CLI', 'No response to error logging preference, errors will not be reported.');
       resolve(false);
     }, MAXIMUM_WAIT_TIME);
   });
