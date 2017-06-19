@@ -1,18 +1,7 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -71,31 +60,6 @@ class ReportGeneratorV2 {
   }
 
   /**
-   * Convert categories into old-school aggregations for old HTML report compat.
-   * @param {!Array<{name: string, description: string, id: string, score: number,
-   *    audits: !Array<{result: Object}>}>} categories
-   * @return {!Array<!Aggregation>}
-   */
-  static _getAggregations(reportCategories) {
-    return reportCategories.map(category => {
-      const name = category.name;
-      const description = category.description;
-
-      return {
-        name, description,
-        categorizable: false,
-        scored: category.id === 'pwa',
-        total: category.score / 100,
-        score: [{
-          name, description,
-          overall: category.score / 100,
-          subItems: category.audits.map(audit => audit.result),
-        }],
-      };
-    });
-  }
-
-  /**
    * Returns the report JSON object with computed scores.
    * @param {{categories: !Object<{audits: !Array}>}} config
    * @param {!Object<{score: ?number|boolean|undefined}>} resultsByAuditId
@@ -122,9 +86,7 @@ class ReportGeneratorV2 {
     });
 
     const overallScore = ReportGeneratorV2.arithmeticMean(categories);
-    // TODO: remove aggregations when old report is fully replaced
-    const aggregations = ReportGeneratorV2._getAggregations(categories);
-    return {score: overallScore, categories, aggregations};
+    return {score: overallScore, categories};
   }
 
   /**

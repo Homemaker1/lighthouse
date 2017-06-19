@@ -1,18 +1,7 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -175,12 +164,10 @@ class FirstInteractive extends ComputedArtifact {
   }
 
   /**
-   * @param {!Trace} trace
-   * @param {!tr.Model} traceModel
    * @param {!TraceOfTabArtifact} traceOfTab
    * @return {{timeInMs: number, timestamp: number}}
    */
-  computeWithArtifacts(trace, traceModel, traceOfTab) {
+  computeWithArtifacts(traceOfTab) {
     const navStart = traceOfTab.timestamps.navigationStart;
     const FMP = traceOfTab.timings.firstMeaningfulPaint;
     const DCL = traceOfTab.timings.domContentLoaded;
@@ -194,14 +181,14 @@ class FirstInteractive extends ComputedArtifact {
       throw new Error(`No ${FMP ? 'domContentLoaded' : 'firstMeaningfulPaint'} event in trace`);
     }
 
-    const longTasksAfterFMP = TracingProcessor.getMainThreadTopLevelEvents(traceModel, trace, FMP)
+    const longTasksAfterFMP = TracingProcessor.getMainThreadTopLevelEvents(traceOfTab, FMP)
         .filter(evt => evt.duration >= LONG_TASK_THRESHOLD);
     const firstInteractive = FirstInteractive.findQuietWindow(FMP, traceEnd, longTasksAfterFMP);
 
     const valueInMs = Math.max(firstInteractive, DCL);
     return {
       timeInMs: valueInMs,
-      timestamp: (valueInMs + navStart) * 1000,
+      timestamp: valueInMs * 1000 + navStart,
     };
   }
 
@@ -211,11 +198,8 @@ class FirstInteractive extends ComputedArtifact {
    * @return {{timeInMs: number, timestamp: number}}
    */
   compute_(trace, artifacts) {
-    return Promise.all([
-      artifacts.requestTracingModel(trace),
-      artifacts.requestTraceOfTab(trace),
-    ]).then(([traceModel, traceOfTab]) => {
-      return this.computeWithArtifacts(trace, traceModel, traceOfTab);
+    return artifacts.requestTraceOfTab(trace).then(traceOfTab => {
+      return this.computeWithArtifacts(traceOfTab);
     });
   }
 }

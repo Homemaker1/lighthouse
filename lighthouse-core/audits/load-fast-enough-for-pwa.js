@@ -1,20 +1,8 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-
 'use strict';
 
 /** @fileoverview
@@ -28,6 +16,7 @@ const URL = require('../lib/url-shim');
 const Emulation = require('../lib/emulation');
 const Formatter = require('../report/formatter');
 const Sentry = require('../lib/sentry');
+const Util = require('../report/v2/renderer/util.js');
 
 // Maximum TTFI to be considered "fast" for PWA baseline checklist
 //   https://developers.google.com/web/progressive-web-apps/checklist
@@ -117,7 +106,7 @@ class LoadFastEnough4Pwa extends Audit {
           return {
             rawValue: false,
             // eslint-disable-next-line max-len
-            debugString: `First Interactive was at ${timeToFirstInteractive.toLocaleString()}. More details in the "Performance" section.`,
+            debugString: `First Interactive was at ${Util.formatMilliseconds(timeToFirstInteractive)}. More details in the "Performance" section.`,
             extendedInfo
           };
         }
@@ -140,7 +129,7 @@ class LoadFastEnough4Pwa extends Audit {
           return {
             rawValue: true,
             // eslint-disable-next-line max-len
-            debugString: `First Interactive was found at ${timeToFirstInteractive.toLocaleString()}, however, the network request latencies were not sufficiently realistic, so the performance measurements cannot be trusted.`,
+            debugString: `First Interactive was found at ${Util.formatMilliseconds(timeToFirstInteractive)}, however, the network request latencies were not sufficiently realistic, so the performance measurements cannot be trusted.`,
             extendedInfo,
             details
           };

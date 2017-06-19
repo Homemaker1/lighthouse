@@ -3,7 +3,6 @@
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-
 'use strict';
 
 const MultiCheckAudit = require('./multi-check-audit');
@@ -29,7 +28,8 @@ class ThemedOmnibox extends MultiCheckAudit {
       category: 'PWA',
       name: 'themed-omnibox',
       description: 'Address bar matches brand colors',
-      helpText: 'The browser address bar can be themed to match your site. A `theme-color` [meta tag](https://developers.google.com/web/updates/2014/11/Support-for-theme-color-in-Chrome-39-for-Android) will upgrade the address bar when a user browses the site, and the [manifest theme-color](https://developers.google.com/web/updates/2015/08/using-manifest-to-set-sitewide-theme-color) will apply the same theme site-wide once it\'s been added to homescreen.',
+      helpText: 'The browser address bar can be themed to match your site. ' +
+          '[Learn more](https://developers.google.com/web/tools/lighthouse/audits/address-bar).',
       requiredArtifacts: ['Manifest', 'ThemeColor']
     };
   }

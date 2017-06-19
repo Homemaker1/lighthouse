@@ -836,7 +836,7 @@
       "name": "total-byte-weight",
       "category": "Network",
       "description": "Avoids enormous network payloads",
-      "helpText": "Network transfer size [costs users real dollars](https://whatdoesmysitecost.com/) and is [highly correlated](http://httparchive.org/interesting.php#onLoad) with long load times. Try to find ways to reduce the size of required files."
+      "helpText": "Network transfer size [costs users real money](https://whatdoesmysitecost.com/) and is [highly correlated](http://httparchive.org/interesting.php#onLoad) with long load times. Try to find ways to reduce the size of required files."
     },
     "unused-css-rules": {
       "score": true,
@@ -942,7 +942,7 @@
       "name": "dom-size",
       "category": "Performance",
       "description": "Avoids an excessive DOM size",
-      "helpText": "Browser engineers recommend pages contain fewer than ~1,500 DOM nodes. The sweet spot is a tree depth < 32 elements and fewer than 60 children/parent element. A large DOM can increase memory, cause longer [style calculations](https://developers.google.com/web/fundamentals/performance/rendering/reduce-the-scope-and-complexity-of-style-calculations), and produce costly [layout reflows](https://developers.google.com/speed/articles/reflow). [Learn more](https://developers.google.com/web/fundamentals/performance/rendering/)."
+      "helpText": "Browser engineers recommend pages contain fewer than ~1,500 DOM nodes. The sweet spot is a tree depth < 32 elements and fewer than 60 children/parent element. A large DOM can increase memory usage, cause longer [style calculations](https://developers.google.com/web/fundamentals/performance/rendering/reduce-the-scope-and-complexity-of-style-calculations), and produce costly [layout reflows](https://developers.google.com/speed/articles/reflow). [Learn more](https://developers.google.com/web/fundamentals/performance/rendering/)."
     },
     "external-anchors-use-rel-noopener": {
       "score": false,

@@ -1,17 +1,7 @@
 /**
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -300,22 +290,15 @@ describe('Runner', () => {
         displayValue: ''
       }],
 
-      aggregations: [{
-        name: 'Aggregation',
-        description: '',
-        scored: true,
-        categorizable: true,
-        items: [{
-          name: 'name',
-          description: 'description',
-          audits: {
-            'content-width': {
-              expectedValue: true,
-              weight: 1
-            }
-          }
-        }]
-      }]
+      categories: {
+        category: {
+          name: 'Category',
+          description: '',
+          audits: [
+            {id: 'content-width', weight: 1}
+          ]
+        }
+      }
     });
 
     return Runner.run(null, {url, config, driverMock}).then(results => {
@@ -354,36 +337,6 @@ describe('Runner', () => {
       assert.equal(results.reportCategories[0].audits[0].id, 'content-width');
       assert.equal(results.reportCategories[0].audits[0].score, 100);
       assert.equal(results.reportCategories[0].audits[0].result.displayValue, 'display');
-    });
-  });
-
-  it('returns an aggregation', () => {
-    const url = 'https://example.com';
-    const config = new Config({
-      auditResults: [{
-        name: 'content-width',
-        rawValue: true,
-        score: true,
-        displayValue: ''
-      }],
-      categories: {
-        category: {
-          name: 'Category',
-          description: '',
-          audits: [
-            {id: 'content-width', weight: 1}
-          ]
-        }
-      }
-    });
-
-    return Runner.run(null, {url, config, driverMock}).then(results => {
-      assert.ok(results.lighthouseVersion);
-      assert.ok(results.generatedTime);
-      assert.equal(results.initialUrl, url);
-      assert.equal(results.audits['content-width'].name, 'content-width');
-      assert.equal(results.aggregations[0].score[0].overall, 1);
-      assert.equal(results.aggregations[0].score[0].subItems[0].name, 'content-width');
     });
   });
 
@@ -467,12 +420,10 @@ describe('Runner', () => {
       const devtoolsLogs = artifacts.devtoolsLogs['firstPass'];
       assert.equal(Array.isArray(devtoolsLogs), true, 'devtoolsLogs is not an array');
 
-      return artifacts.requestNetworkRecords(devtoolsLogs).then(networkRecords => {
-        return artifacts.requestCriticalRequestChains(networkRecords).then(chains => {
-          assert.ok(chains['93149.1']);
-          assert.ok(chains['93149.1'].request);
-          assert.ok(chains['93149.1'].children);
-        });
+      return artifacts.requestCriticalRequestChains(devtoolsLogs).then(chains => {
+        assert.ok(chains['93149.1']);
+        assert.ok(chains['93149.1'].request);
+        assert.ok(chains['93149.1'].children);
       });
     });
   });

@@ -1,17 +1,7 @@
 /**
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -22,6 +12,7 @@ const Runner = require('../../../runner.js');
 
 const tooShortTrace = require('../../fixtures/traces/progressive-app.json');
 const acceptableTrace = require('../../fixtures/traces/progressive-app-m60.json');
+const redirectTrace = require('../../fixtures/traces/site-with-redirect.json');
 
 const assert = require('assert');
 
@@ -43,7 +34,14 @@ describe('FirstInteractive computed artifact:', () => {
 
   it('should compute firstInteractive', () => {
     return computedArtifacts.requestFirstInteractive(acceptableTrace).then(output => {
-      assert.equal(Math.round(output.timeInMs), 1587);
+      assert.equal(Math.round(output.timeInMs), 1582);
+      assert.ok(output.timestamp, 'output is missing timestamp');
+    });
+  });
+
+  it('should compute firstInteractive on pages with redirect', () => {
+    return computedArtifacts.requestFirstInteractive(redirectTrace).then(output => {
+      assert.equal(Math.round(output.timeInMs), 2712);
       assert.ok(output.timestamp, 'output is missing timestamp');
     });
   });
@@ -64,7 +62,7 @@ describe('FirstInteractive computed artifact:', () => {
 
     it('should throw when trace is not long enough after FMP', () => {
       assert.throws(() => {
-        firstInteractive.computeWithArtifacts({}, {}, {
+        firstInteractive.computeWithArtifacts({
           timings: {
             firstMeaningfulPaint: 3400,
             traceEnd: 4500,
@@ -79,14 +77,14 @@ describe('FirstInteractive computed artifact:', () => {
     it('should return FMP when no trace events are found', () => {
       mainThreadEvents = [];
 
-      const result = firstInteractive.computeWithArtifacts({}, {}, {
+      const result = firstInteractive.computeWithArtifacts({
         timings: {
           firstMeaningfulPaint: 3400,
           domContentLoaded: 2000,
           traceEnd: 12000,
         },
         timestamps: {
-          navigationStart: 600,
+          navigationStart: 600 * 1000,
         },
       });
 
@@ -97,7 +95,7 @@ describe('FirstInteractive computed artifact:', () => {
     it('should not return a time earlier than FMP', () => {
       mainThreadEvents = [];
 
-      const result = firstInteractive.computeWithArtifacts({}, {}, {
+      const result = firstInteractive.computeWithArtifacts({
         timings: {
           firstMeaningfulPaint: 3400,
           domContentLoaded: 2000,
@@ -114,7 +112,7 @@ describe('FirstInteractive computed artifact:', () => {
     it('should return DCL when DCL is after FMP', () => {
       mainThreadEvents = [];
 
-      const result = firstInteractive.computeWithArtifacts({}, {}, {
+      const result = firstInteractive.computeWithArtifacts({
         timings: {
           firstMeaningfulPaint: 3400,
           domContentLoaded: 7000,
@@ -133,7 +131,7 @@ describe('FirstInteractive computed artifact:', () => {
         {start: 5000, end: 5100},
       ];
 
-      const result = firstInteractive.computeWithArtifacts({}, {}, {
+      const result = firstInteractive.computeWithArtifacts({
         timings: {
           firstMeaningfulPaint: 3400,
           domContentLoaded: 7000,
@@ -154,7 +152,7 @@ describe('FirstInteractive computed artifact:', () => {
         {start: 12000, end: 12100}, // light task
       ];
 
-      const result = firstInteractive.computeWithArtifacts({}, {}, {
+      const result = firstInteractive.computeWithArtifacts({
         timings: {
           firstMeaningfulPaint: 3400,
           domContentLoaded: 2300,

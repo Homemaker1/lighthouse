@@ -1,6 +1,6 @@
 {
   "name": "lighthouse",
-  "version": "2.0.1-alpha.0",
+  "version": "2.1.0",
   "description": "Lighthouse",
   "main": "./lighthouse-core/index.js",
   "bin": {
@@ -11,12 +11,16 @@
     "node": ">=6"
   },
   "scripts": {
-    "install-all": "yarn && yarn install-launcher && yarn install-cli && yarn install-extension && yarn install-viewer",
+    "install-all": "npm-run-posix-or-windows install-all:task",
+    "install-all:task": "yarn & yarn install-launcher & yarn install-cli & yarn install-extension & yarn install-viewer & wait",
+    "install-all:task:windows": "yarn && yarn install-launcher && yarn install-cli && yarn install-extension && yarn install-viewer",
     "install-launcher": "cd ./chrome-launcher && yarn install && yarn build",
     "install-cli": "cd ./lighthouse-cli && yarn install && yarn build",
     "install-extension": "cd ./lighthouse-extension && yarn install",
     "install-viewer": "cd ./lighthouse-viewer && yarn install",
-    "build-all": "gulp && yarn build-launcher && yarn build-cli && yarn build-extension && yarn build-viewer",
+    "build-all": "npm-run-posix-or-windows build-all:task",
+    "build-all:task": "gulp && yarn build-launcher & yarn build-cli & yarn build-extension & yarn build-viewer & wait",
+    "build-all:task:windows": "gulp && yarn build-launcher && yarn build-cli && yarn build-extension && yarn build-viewer",
     "build-cli": "cd ./lighthouse-cli && yarn build",
     "build-launcher": "cd ./chrome-launcher && yarn build",
     "build-extension": "cd ./lighthouse-extension && yarn build",
@@ -46,7 +50,8 @@
     "chrome": "node chrome-launcher/manual-chrome-launcher.js",
     "fast": "yarn start -- --disable-device-emulation --disable-cpu-throttling --disable-network-throttling",
     "smokehouse": "node lighthouse-cli/test/smokehouse/smokehouse.js",
-    "deploy-viewer": "cd lighthouse-viewer && gulp deploy"
+    "deploy-viewer": "cd lighthouse-viewer && gulp deploy",
+    "plots-smoke": "bash plots/test/smoke.sh"
   },
   "devDependencies": {
     "@types/node": "^6.0.45",
@@ -65,6 +70,7 @@
     "istanbul": "^0.4.3",
     "jsdom": "^9.12.0",
     "mocha": "^3.2.0",
+    "npm-run-posix-or-windows": "^2.0.2",
     "zone.js": "^0.7.3"
   },
   "dependencies": {

@@ -1,17 +1,7 @@
 /**
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -67,7 +57,7 @@ describe('Config', () => {
 
   it('uses the default config when no config is provided', () => {
     const config = new Config();
-    assert.deepStrictEqual(origConfig.aggregations, config.aggregations);
+    assert.deepStrictEqual(origConfig.categories, config.categories);
     assert.equal(origConfig.audits.length, config.audits.length);
   });
 
@@ -129,7 +119,7 @@ describe('Config', () => {
     assert.equal(configJSON.passes[0].gatherers.length, 2);
   });
 
-  it('contains new copies of auditResults and aggregations', () => {
+  it('contains new copies of auditResults', () => {
     const configJSON = origConfig;
     configJSON.auditResults = [{
       value: 1,
@@ -146,10 +136,7 @@ describe('Config', () => {
 
     const config = new Config(configJSON);
     assert.notEqual(config, configJSON, 'Objects are strictly different');
-    assert.ok(config.aggregations, 'Aggregations array exists');
     assert.ok(config.auditResults, 'Audits array exists');
-    assert.deepStrictEqual(config.aggregations, configJSON.aggregations, 'Aggregations match');
-    assert.notEqual(config.aggregations, configJSON.aggregations, 'Aggregations not same object');
     assert.notEqual(config.auditResults, configJSON.auditResults, 'Audits not same object');
     assert.deepStrictEqual(config.auditResults, configJSON.auditResults, 'Audits match');
   });
@@ -309,6 +296,7 @@ describe('Config', () => {
       settings: {
         onlyCategories: ['needed-category'],
         onlyAudits: ['color-contrast'],
+        skipAudits: ['first-meaningful-paint'],
       },
       passes: [
         {recordTrace: true, gatherers: []},
@@ -317,14 +305,14 @@ describe('Config', () => {
       audits: [
         'accessibility/color-contrast',
         'first-meaningful-paint',
-        'time-to-interactive',
+        'first-interactive',
         'estimated-input-latency',
       ],
       categories: {
         'needed-category': {
           audits: [
             {id: 'first-meaningful-paint'},
-            {id: 'time-to-interactive'},
+            {id: 'first-interactive'},
           ],
         },
         'other-category': {
@@ -341,11 +329,11 @@ describe('Config', () => {
       },
     });
 
-    assert.ok(config.audits.length, 3);
+    assert.ok(config.audits.length, 2);
     assert.equal(config.passes.length, 2);
     assert.ok(config.passes[0].recordTrace, 'preserves recordTrace pass');
     assert.ok(!config.categories['unused-category'], 'removes unused categories');
-    assert.equal(config.categories['needed-category'].audits.length, 2);
+    assert.equal(config.categories['needed-category'].audits.length, 1);
     assert.equal(config.categories['other-category'].audits.length, 1);
   });
 
@@ -389,13 +377,14 @@ describe('Config', () => {
       extends: true,
       settings: {
         onlyCategories: ['performance', 'missing-category'],
-        onlyAudits: ['time-to-interactive', 'missing-audit'],
+        onlyAudits: ['first-interactive', 'missing-audit'],
+        skipAudits: ['first-interactive'],
       },
     });
 
     log.events.removeListener('warning', saveWarning);
     assert.ok(config, 'failed to generate config');
-    assert.equal(warnings.length, 3, 'did not warn enough');
+    assert.equal(warnings.length, 4, 'did not warn enough');
   });
 
   describe('artifact loading', () => {
@@ -490,15 +479,15 @@ describe('Config', () => {
       assert.deepEqual(merged.audits, ['a', 'b', 'c']);
     });
 
-    it('should merge aggregations', () => {
-      const configA = {aggregations: [{name: 'A'}, {name: 'B'}]};
-      const configB = {aggregations: [{name: 'C'}]};
+    it('should merge categories', () => {
+      const configA = {categories: {A: {name: 'Acat'}, B: {name: 'Bcat'}}};
+      const configB = {categories: {C: {name: 'Ccat'}}};
       const merged = Config.extendConfigJSON(configA, configB);
-      assert.deepEqual(merged.aggregations, [
-        {name: 'A'},
-        {name: 'B'},
-        {name: 'C'},
-      ]);
+      assert.deepStrictEqual(merged.categories, {
+        A: {name: 'Acat'},
+        B: {name: 'Bcat'},
+        C: {name: 'Ccat'},
+      });
     });
 
     it('should merge other values', () => {
@@ -515,12 +504,12 @@ describe('Config', () => {
   });
 
   describe('getCategories', () => {
-    it('returns the IDs & names of the aggregations', () => {
+    it('returns the IDs & names of the categories', () => {
       const categories = Config.getCategories(origConfig);
       assert.equal(Array.isArray(categories), true);
       assert.equal(categories.length, 4, 'Found the correct number of categories');
-      const haveName = categories.every(agg => agg.name.length);
-      const haveID = categories.every(agg => agg.id.length);
+      const haveName = categories.every(cat => cat.name.length);
+      const haveID = categories.every(cat => cat.id.length);
       assert.equal(haveName === haveID === true, true, 'they have IDs and names');
     });
   });
@@ -560,7 +549,7 @@ describe('Config', () => {
       const selectedCategory = origConfig.categories.performance;
       const auditCount = Object.keys(selectedCategory.audits).length;
 
-      assert.equal(config.audits.length, auditCount, '# of audits match aggregation list');
+      assert.equal(config.audits.length, auditCount, '# of audits match category list');
     });
 
     it('should only run specified audits', () => {

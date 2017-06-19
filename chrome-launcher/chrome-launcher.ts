@@ -1,20 +1,8 @@
 /**
- * @license
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-
 'use strict';
 
 import * as childProcess from 'child_process';
@@ -25,7 +13,7 @@ import {DEFAULT_FLAGS} from './flags';
 import {makeTmpDir, defaults, delay} from './utils';
 import * as net from 'net';
 const rimraf = require('rimraf');
-const log = require('../lighthouse-core/lib/log');
+const log = require('lighthouse/lighthouse-core/lib/log');
 const spawn = childProcess.spawn;
 const execSync = childProcess.execSync;
 const isWindows = process.platform === 'win32';
@@ -41,6 +29,7 @@ export interface Options {
   port?: number;
   handleSIGINT?: boolean;
   chromePath?: string;
+  userDataDir?: string;
 }
 
 export interface LaunchedChrome {
@@ -48,6 +37,8 @@ export interface LaunchedChrome {
   port: number;
   kill: () => Promise<{}>;
 }
+
+export interface ModuleOverrides { fs?: typeof fs, rimraf?: typeof rimraf, }
 
 export async function launch(opts: Options = {}): Promise<LaunchedChrome> {
   opts.handleSIGINT = defaults(opts.handleSIGINT, true);
@@ -72,29 +63,35 @@ export class Launcher {
   private pollInterval: number = 500;
   private pidFile: string;
   private startingUrl: string;
-  private TMP_PROFILE_DIR: string;
   private outFile?: number;
   private errFile?: number;
   private chromePath?: string;
   private chromeFlags: string[];
-  private chrome?: childProcess.ChildProcess;
   private requestedPort?: number;
+  private chrome?: childProcess.ChildProcess;
+  private fs: typeof fs;
+  private rimraf: typeof rimraf;
+
+  userDataDir?: string;
   port?: number;
   pid?: number;
 
-  constructor(opts: Options = {}) {
+  constructor(private opts: Options = {}, moduleOverrides: ModuleOverrides = {}) {
+    this.fs = moduleOverrides.fs || fs;
+    this.rimraf = moduleOverrides.rimraf || rimraf;
+
     // choose the first one (default)
-    this.startingUrl = defaults(opts.startingUrl, 'about:blank');
-    this.chromeFlags = defaults(opts.chromeFlags, []);
-    this.requestedPort = defaults(opts.port, 0);
-    this.chromePath = opts.chromePath;
+    this.startingUrl = defaults(this.opts.startingUrl, 'about:blank');
+    this.chromeFlags = defaults(this.opts.chromeFlags, []);
+    this.requestedPort = defaults(this.opts.port, 0);
+    this.chromePath = this.opts.chromePath;
   }
 
   private get flags() {
     const flags = DEFAULT_FLAGS.concat([
       `--remote-debugging-port=${this.port}`,
       // Place Chrome profile in a custom location we'll rm -rf later
-      `--user-data-dir=${this.TMP_PROFILE_DIR}`
+      `--user-data-dir=${this.userDataDir}`
     ]);
 
     if (process.platform === 'linux') {
@@ -107,22 +104,26 @@ export class Launcher {
     return flags;
   }
 
-  private prepare() {
+  // Wrapper function to enable easy testing.
+  makeTmpDir() {
+    return makeTmpDir();
+  }
+
+  prepare() {
     const platform = process.platform as SupportedPlatforms;
     if (!_SUPPORTED_PLATFORMS.has(platform)) {
       throw new Error(`Platform ${platform} is not supported`);
     }
 
-    this.TMP_PROFILE_DIR = makeTmpDir();
-
-    this.outFile = fs.openSync(`${this.TMP_PROFILE_DIR}/chrome-out.log`, 'a');
-    this.errFile = fs.openSync(`${this.TMP_PROFILE_DIR}/chrome-err.log`, 'a');
+    this.userDataDir = this.opts.userDataDir || this.makeTmpDir();
+    this.outFile = this.fs.openSync(`${this.userDataDir}/chrome-out.log`, 'a');
+    this.errFile = this.fs.openSync(`${this.userDataDir}/chrome-err.log`, 'a');
 
     // fix for Node4
     // you can't pass a fd to fs.writeFileSync
-    this.pidFile = `${this.TMP_PROFILE_DIR}/chrome.pid`;
+    this.pidFile = `${this.userDataDir}/chrome.pid`;
 
-    log.verbose('ChromeLauncher', `created ${this.TMP_PROFILE_DIR}`);
+    log.verbose('ChromeLauncher', `created ${this.userDataDir}`);
 
     this.tmpDirandPidFileReady = true;
   }
@@ -179,7 +180,7 @@ export class Launcher {
           execPath, this.flags, {detached: true, stdio: ['ignore', this.outFile, this.errFile]});
       this.chrome = chrome;
 
-      fs.writeFileSync(this.pidFile, chrome.pid.toString());
+      this.fs.writeFileSync(this.pidFile, chrome.pid.toString());
 
       log.verbose('ChromeLauncher', `Chrome running with pid ${chrome.pid} on port ${this.port}.`);
       resolve(chrome.pid);
@@ -270,25 +271,24 @@ export class Launcher {
     });
   }
 
-  private destroyTmp() {
+  destroyTmp() {
     return new Promise(resolve => {
-      if (!this.TMP_PROFILE_DIR) {
+      // Only clean up the tmp dir if we created it.
+      if (this.userDataDir === undefined || this.opts.userDataDir !== undefined) {
         return resolve();
       }
 
-      log.verbose('ChromeLauncher', `Removing ${this.TMP_PROFILE_DIR}`);
-
       if (this.outFile) {
-        fs.closeSync(this.outFile);
+        this.fs.closeSync(this.outFile);
         delete this.outFile;
       }
 
       if (this.errFile) {
-        fs.closeSync(this.errFile);
+        this.fs.closeSync(this.errFile);
         delete this.errFile;
       }
 
-      rimraf(this.TMP_PROFILE_DIR, () => resolve());
+      this.rimraf(this.userDataDir, () => resolve());
     });
   }
 };

@@ -1,17 +1,7 @@
 /**
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -182,6 +172,21 @@ describe('CategoryRenderer', () => {
       assert.ok(hintSparklineElement, 'did not render sparkline');
       assert.ok(hintElement.querySelector('.lh-perf-hint__stats'), 'did not render stats');
       assert.ok(hintSparklineElement.title, 'did not render tooltip');
+    });
+
+    it('renders the performance hints with a debug string', () => {
+      const auditWithDebug = {
+        score: 0,
+        group: 'perf-hint',
+        result: {rawValue: 100, debugString: 'Yikes!', description: 'Bug'},
+      };
+
+      const fakeAudits = category.audits.concat(auditWithDebug);
+      const fakeCategory = Object.assign({}, category, {audits: fakeAudits});
+      const categoryDOM = renderer.render(fakeCategory, sampleResults.reportGroups);
+
+      const debugEl = categoryDOM.querySelector('.lh-perf-hint .lh-debug');
+      assert.ok(debugEl, 'did not render debug');
     });
 
     it('renders the performance hints with no extended info', () => {

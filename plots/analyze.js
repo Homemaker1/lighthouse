@@ -1,31 +1,27 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
+const util = require('util');
 
 const opn = require('opn');
+const args = require('yargs')
+  .example('node $0 ./out-dir')
+  .help('help')
+  .demand(1)
+  .argv;
 
 const constants = require('./constants');
 const utils = require('./utils');
 const Metrics = require('../lighthouse-core/lib/traces/pwmetrics-events');
 
-const GENERATED_RESULTS_PATH = path.resolve(constants.OUT_PATH, 'generatedResults.js');
+const outFolder = args._[0];
+const outPath = path.resolve(__dirname, outFolder);
 
 /**
  * Analyzes output generated from the measure step and
@@ -33,8 +29,8 @@ const GENERATED_RESULTS_PATH = path.resolve(constants.OUT_PATH, 'generatedResult
  */
 function main() {
   const allResults = [];
-  fs.readdirSync(constants.OUT_PATH).forEach(siteDir => {
-    const sitePath = path.resolve(constants.OUT_PATH, siteDir);
+  fs.readdirSync(outPath).forEach(siteDir => {
+    const sitePath = path.resolve(outPath, siteDir);
     if (!utils.isDir(sitePath)) {
       return;
     }
@@ -42,11 +38,19 @@ function main() {
   });
   const generatedResults = groupByMetrics(allResults);
   fs.writeFileSync(
-    GENERATED_RESULTS_PATH,
+    path.resolve(outPath, constants.GENERATED_RESULTS_FILENAME),
     `var generatedResults = ${JSON.stringify(generatedResults)}`
   );
+  const chartsPath = path.resolve(__dirname, constants.CHARTS_FOLDER);
+  utils.copy(path.resolve(chartsPath, constants.CHARTS_HTML_FILENAME), outPath);
+  utils.copy(path.resolve(chartsPath, constants.CHARTS_JS_FILENAME), outPath);
+  utils.copy(path.resolve(chartsPath, constants.CHARTS_LOADER_FILENAME), outPath);
+
+  if (process.env.CI) {
+    return;
+  }
   console.log('Opening the charts web page...');  // eslint-disable-line no-console
-  opn(path.resolve(__dirname, 'index.html'));
+  opn(path.resolve(outPath, constants.CHARTS_HTML_FILENAME));
 }
 
 main();
@@ -59,17 +63,18 @@ main();
 function analyzeSite(sitePath) {
   console.log('Analyzing', sitePath); // eslint-disable-line no-console
   const runResults = [];
-  fs.readdirSync(sitePath).forEach(runDir => {
+  fs.readdirSync(sitePath).sort((a, b) => a.localeCompare(b)).forEach(runDir => {
     const resultsPath = path.resolve(sitePath, runDir, constants.LIGHTHOUSE_RESULTS_FILENAME);
     if (!utils.isFile(resultsPath)) {
       return;
     }
     const metrics = readResult(resultsPath);
-    console.log(`Metric for ${runDir}: ${JSON.stringify(metrics)}`); // eslint-disable-line no-console
-    runResults[runDir] = {
+    const prettymetrics = util.inspect(metrics, {colors: true, breakLength: Infinity});
+    console.log(`Metrics for ${runDir}:`, prettymetrics); // eslint-disable-line no-console
+    runResults.push({
       runId: runDir,
       metrics
-    };
+    });
   });
   return runResults;
 }

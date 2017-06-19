@@ -1,24 +1,14 @@
 /**
- * @license
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
 const Audit = require('./audit');
 const Util = require('../report/v2/renderer/util.js');
 const TracingProcessor = require('../lib/traces/tracing-processor');
+const statistics = require('../lib/statistics');
 const Formatter = require('../report/formatter');
 
 // Parameters (in ms) for log-normal CDF scoring. To see the curve:
@@ -46,13 +36,13 @@ class EstimatedInputLatency extends Audit {
     };
   }
 
-  static calculate(tabTrace, model, trace) {
+  static calculate(tabTrace) {
     const startTime = tabTrace.timings.firstMeaningfulPaint;
     if (!startTime) {
       throw new Error('No firstMeaningfulPaint event found in trace');
     }
 
-    const latencyPercentiles = TracingProcessor.getRiskToResponsiveness(model, trace, startTime);
+    const latencyPercentiles = TracingProcessor.getRiskToResponsiveness(tabTrace, startTime);
     const ninetieth = latencyPercentiles.find(result => result.percentile === 0.9);
     const rawValue = parseFloat(ninetieth.time.toFixed(1));
 
@@ -62,13 +52,13 @@ class EstimatedInputLatency extends Audit {
     //  Median = 100ms
     //  75th Percentile ≈ 133ms
     //  95th Percentile ≈ 199ms
-    const distribution = TracingProcessor.getLogNormalDistribution(SCORING_MEDIAN,
+    const distribution = statistics.getLogNormalDistribution(SCORING_MEDIAN,
         SCORING_POINT_OF_DIMINISHING_RETURNS);
     const score = 100 * distribution.computeComplementaryPercentile(ninetieth.time);
 
     return {
       score: Math.round(score),
-      optimalValue: this.meta.optimalValue,
+      optimalValue: EstimatedInputLatency.meta.optimalValue,
       rawValue,
       displayValue: Util.formatMilliseconds(rawValue, 1),
       extendedInfo: {
@@ -87,13 +77,8 @@ class EstimatedInputLatency extends Audit {
   static audit(artifacts) {
     const trace = artifacts.traces[this.DEFAULT_PASS];
 
-    const pending = [
-      artifacts.requestTraceOfTab(trace),
-      artifacts.requestTracingModel(trace)
-    ];
-    return Promise.all(pending).then(([tabTrace, model]) => {
-      return EstimatedInputLatency.calculate(tabTrace, model, trace);
-    });
+    return artifacts.requestTraceOfTab(trace)
+        .then(EstimatedInputLatency.calculate);
   }
 }
 

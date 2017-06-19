@@ -1,26 +1,18 @@
 /**
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
-let TracingProcessor;
 const assert = require('assert');
 
 /* eslint-env mocha */
+const TracingProcessor = require('../../../lib/traces/tracing-processor');
 const pwaTrace = require('../../fixtures/traces/progressive-app.json');
 const defaultPercentiles = [0, 0.25, 0.5, 0.75, 0.9, 0.99, 1];
+
+const TraceOfTab = require('../../../gather/computed/trace-of-tab');
 
 /**
  * Create a riskPercentiles result object by matching the values in percentiles
@@ -39,31 +31,6 @@ function createRiskPercentiles(percentiles, times) {
 }
 
 describe('TracingProcessor lib', () => {
-  it('doesn\'t throw when module is loaded', () => {
-    assert.doesNotThrow(_ => {
-      TracingProcessor = require('../../../lib/traces/tracing-processor');
-    });
-  });
-
-  it('doesn\'t throw when user_timing events have a colon', () => {
-    assert.doesNotThrow(_ => {
-      new TracingProcessor().init([
-        {
-          'pid': 15256,
-          'tid': 1295,
-          'ts': 668545368880,
-          'ph': 'e',
-          'id': 'fake-event',
-          'cat': 'blink.user_timing',
-          'name': 'Zone:ZonePromise',
-          'dur': 64,
-          'tdur': 61,
-          'tts': 881373
-        },
-      ]);
-    });
-  });
-
   describe('riskPercentiles calculation', () => {
     it('correctly calculates percentiles of no tasks', () => {
       const results = TracingProcessor._riskPercentiles([], 100, defaultPercentiles);
@@ -179,38 +146,52 @@ describe('TracingProcessor lib', () => {
     });
   });
 
-  describe('log normal distribution', () => {
-    it('creates a log normal distribution', () => {
-      // This curve plotted with the below percentile assertions
-      // https://www.desmos.com/calculator/vjk2rwd17y
+  describe('getMainThreadTopLevelEvents', () => {
+    it('gets durations of top-level tasks', () => {
+      const trace = {traceEvents: pwaTrace};
+      const tabTrace = new TraceOfTab().compute_(trace);
+      const ret = TracingProcessor.getMainThreadTopLevelEvents(tabTrace);
 
-      const median = 5000;
-      const pODM = 3500;
-      const distribution = TracingProcessor.getLogNormalDistribution(median, pODM);
+      assert.equal(ret.length, 645);
+    });
 
-      function getPct(distribution, value) {
-        return Number(distribution.computeComplementaryPercentile(value).toFixed(2));
-      }
-      assert.equal(typeof distribution.computeComplementaryPercentile, 'function');
-      assert.equal(getPct(distribution, 2000), 1.00, 'pct for 2000 does not match');
-      assert.equal(getPct(distribution, 3000), 0.98, 'pct for 3000 does not match');
-      assert.equal(getPct(distribution, 3500), 0.92, 'pct for 3500 does not match');
-      assert.equal(getPct(distribution, 4000), 0.81, 'pct for 4000 does not match');
-      assert.equal(getPct(distribution, 5000), 0.50, 'pct for 5000 does not match');
-      assert.equal(getPct(distribution, 6000), 0.24, 'pct for 6000 does not match');
-      assert.equal(getPct(distribution, 7000), 0.09, 'pct for 7000 does not match');
-      assert.equal(getPct(distribution, 8000), 0.03, 'pct for 8000 does not match');
-      assert.equal(getPct(distribution, 9000), 0.01, 'pct for 9000 does not match');
-      assert.equal(getPct(distribution, 10000), 0.00, 'pct for 10000 does not match');
+    it('filters events based on start and end times', () => {
+      const baseTime = 20000 * 1000;
+      const name = 'TaskQueueManager::ProcessTaskFromWorkQueue';
+      const tabTrace = {
+        navigationStartEvt: {ts: baseTime},
+        mainThreadEvents: [
+          // 15ms to 25ms
+          {ts: baseTime + 15 * 1000, dur: 10 * 1000, name},
+          // 40ms to 60ms
+          {ts: baseTime + 40 * 1000, dur: 20 * 1000, name},
+          // 1000ms to 2000ms
+          {ts: baseTime + 1000 * 1000, dur: 1000 * 1000, name},
+          // 4000ms to 4020ms
+          {ts: baseTime + 4000 * 1000, dur: 20 * 1000, name},
+        ],
+      };
+
+      const ret = TracingProcessor.getMainThreadTopLevelEvents(
+        tabTrace,
+        50,
+        1500
+      );
+      assert.equal(ret.length, 2);
+      assert.equal(ret[0].start, 40);
+      assert.equal(ret[0].end, 60);
+      assert.equal(ret[0].duration, 20);
+      assert.equal(ret[1].start, 1000);
+      assert.equal(ret[1].end, 2000);
+      assert.equal(ret[1].duration, 1000);
     });
   });
 
-  describe('risk to responsiveness', () => {
+  describe('getMainThreadTopLevelEventDurations', () => {
     it('gets durations of top-level tasks', () => {
-      const tracingProcessor = new TracingProcessor();
-      const model = tracingProcessor.init(pwaTrace);
       const trace = {traceEvents: pwaTrace};
-      const ret = TracingProcessor.getMainThreadTopLevelEventDurations(model, trace);
+      const tabTrace = new TraceOfTab().compute_(trace);
+      const ret = TracingProcessor.getMainThreadTopLevelEventDurations(tabTrace);
       const durations = ret.durations;
 
       function getDurationFromIndex(index) {
@@ -218,7 +199,7 @@ describe('TracingProcessor lib', () => {
       }
 
       assert.equal(durations.filter(dur => isNaN(dur)).length, 0, 'NaN found');
-      assert.equal(durations.length, 652);
+      assert.equal(durations.length, 645);
 
       assert.equal(getDurationFromIndex(50), 0.01);
       assert.equal(getDurationFromIndex(300), 0.04);
@@ -226,6 +207,33 @@ describe('TracingProcessor lib', () => {
       assert.equal(getDurationFromIndex(durations.length - 3), 26.01);
       assert.equal(getDurationFromIndex(durations.length - 2), 36.9);
       assert.equal(getDurationFromIndex(durations.length - 1), 38.53);
+    });
+  });
+
+  describe('risk to responsiveness', () => {
+    let oldFn;
+    // monkeypatch _riskPercentiles to test just getRiskToResponsiveness
+    beforeEach(() => {
+      oldFn = TracingProcessor._riskPercentiles;
+      TracingProcessor._riskPercentiles = (durations, totalTime, percentiles, clippedLength) => {
+        return {
+          durations, totalTime, percentiles, clippedLength
+        };
+      };
+    });
+
+    it('compute correct defaults', () => {
+      const trace = {traceEvents: pwaTrace};
+      const tabTrace = new TraceOfTab().compute_(trace);
+      const ret = TracingProcessor.getRiskToResponsiveness(tabTrace);
+      assert.equal(ret.durations.length, 645);
+      assert.equal(Math.round(ret.totalTime), 2143);
+      assert.equal(ret.clippedLength, 0);
+      assert.deepEqual(ret.percentiles, [0.5, 0.75, 0.9, 0.99, 1]);
+    });
+
+    afterEach(() => {
+      TracingProcessor._riskPercentiles = oldFn;
     });
   });
 });

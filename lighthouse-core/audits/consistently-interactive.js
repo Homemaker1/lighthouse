@@ -1,8 +1,6 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
@@ -10,6 +8,7 @@
 const Audit = require('./audit');
 const Util = require('../report/v2/renderer/util.js');
 const TracingProcessor = require('../lib/traces/tracing-processor');
+const statistics = require('../lib/statistics');
 const Formatter = require('../report/formatter');
 
 // Parameters (in ms) for log-normal CDF scoring. To see the curve:
@@ -21,7 +20,7 @@ const REQUIRED_QUIET_WINDOW = 5000;
 const ALLOWED_CONCURRENT_REQUESTS = 2;
 const IGNORED_NETWORK_SCHEMES = ['data', 'ws'];
 
-const distribution = TracingProcessor.getLogNormalDistribution(
+const distribution = statistics.getLogNormalDistribution(
   SCORING_MEDIAN,
   SCORING_POINT_OF_DIMINISHING_RETURNS
 );
@@ -56,7 +55,7 @@ class ConsistentlyInteractiveMetric extends Audit {
    * @return {!Array<!TimePeriod>}
    */
   static _findNetworkQuietPeriods(networkRecords, traceOfTab) {
-    const traceEnd = traceOfTab.timestamps.traceEnd;
+    const traceEndTsInMs = traceOfTab.timestamps.traceEnd / 1000;
 
     // First collect the timestamps of when requests start and end
     const timeBoundaries = [];
@@ -96,7 +95,7 @@ class ConsistentlyInteractiveMetric extends Audit {
 
     // Check if the trace ended in a quiet period
     if (numInflightRequests <= ALLOWED_CONCURRENT_REQUESTS) {
-      quietPeriods.push({start: quietPeriodStart, end: traceEnd});
+      quietPeriods.push({start: quietPeriodStart, end: traceEndTsInMs});
     }
 
     return quietPeriods;
@@ -109,8 +108,8 @@ class ConsistentlyInteractiveMetric extends Audit {
    * @return {!Array<!TimePeriod>}
    */
   static _findCPUQuietPeriods(longTasks, traceOfTab) {
-    const navStartTsInMs = traceOfTab.timestamps.navigationStart;
-    const traceEndTsInMs = traceOfTab.timestamps.traceEnd;
+    const navStartTsInMs = traceOfTab.timestamps.navigationStart / 1000;
+    const traceEndTsInMs = traceOfTab.timestamps.traceEnd / 1000;
     if (longTasks.length === 0) {
       return [{start: 0, end: traceEndTsInMs}];
     }
@@ -150,7 +149,7 @@ class ConsistentlyInteractiveMetric extends Audit {
    *    cpuQuietPeriods: !Array<!TimePeriod>, networkQuietPeriods: !Array<!TimePeriod>}}
    */
   static findOverlappingQuietPeriods(longTasks, networkRecords, traceOfTab) {
-    const FMPTsInMs = traceOfTab.timestamps.firstMeaningfulPaint;
+    const FMPTsInMs = traceOfTab.timestamps.firstMeaningfulPaint / 1000;
 
     const isLongEnoughQuietPeriod = period =>
         period.end > FMPTsInMs + REQUIRED_QUIET_WINDOW &&
@@ -209,12 +208,11 @@ class ConsistentlyInteractiveMetric extends Audit {
     const devtoolsLog = artifacts.devtoolsLogs[Audit.DEFAULT_PASS];
     const computedArtifacts = [
       artifacts.requestNetworkRecords(devtoolsLog),
-      artifacts.requestTracingModel(trace),
       artifacts.requestTraceOfTab(trace),
     ];
 
     return Promise.all(computedArtifacts)
-      .then(([networkRecords, traceModel, traceOfTab]) => {
+      .then(([networkRecords, traceOfTab]) => {
         if (!traceOfTab.timestamps.firstMeaningfulPaint) {
           throw new Error('No firstMeaningfulPaint found in trace.');
         }
@@ -223,7 +221,7 @@ class ConsistentlyInteractiveMetric extends Audit {
           throw new Error('No domContentLoaded found in trace.');
         }
 
-        const longTasks = TracingProcessor.getMainThreadTopLevelEvents(traceModel, trace)
+        const longTasks = TracingProcessor.getMainThreadTopLevelEvents(traceOfTab)
             .filter(event => event.duration >= 50);
         const quietPeriodInfo = this.findOverlappingQuietPeriods(longTasks, networkRecords,
             traceOfTab);
@@ -231,10 +229,10 @@ class ConsistentlyInteractiveMetric extends Audit {
 
         const timestamp = Math.max(
           cpuQuietPeriod.start,
-          traceOfTab.timestamps.firstMeaningfulPaint,
-          traceOfTab.timestamps.domContentLoaded
+          traceOfTab.timestamps.firstMeaningfulPaint / 1000,
+          traceOfTab.timestamps.domContentLoaded / 1000
         ) * 1000;
-        const timeInMs = (timestamp - traceOfTab.timestamps.navigationStart * 1000) / 1000;
+        const timeInMs = (timestamp - traceOfTab.timestamps.navigationStart) / 1000;
         const extendedInfo = Object.assign(quietPeriodInfo, {timestamp, timeInMs});
 
         let score = 100 * distribution.computeComplementaryPercentile(timeInMs);

@@ -1,20 +1,8 @@
 /**
- * @license
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-
 'use strict';
 
 /**
@@ -38,8 +26,10 @@ class TraceOfTab extends ComputedArtifact {
   }
 
   /**
+   * Finds key trace events, identifies main process/thread, and returns timings of trace events
+   * in milliseconds since navigation start in addition to the standard microsecond monotonic timestamps.
    * @param {{traceEvents: !Array}} trace
-   * @return {!{processEvents: !Array<TraceEvent>, startedInPageEvt: TraceEvent, navigationStartEvt: TraceEvent, firstContentfulPaintEvt: TraceEvent, firstMeaningfulPaintEvt: TraceEvent}}
+   * @return {!TraceOfTabArtifact}
   */
   compute_(trace) {
     // Parse the trace for our key events and sort them by timestamp.
@@ -101,6 +91,9 @@ class TraceOfTab extends ComputedArtifact {
       .filter(e => e.pid === startedInPageEvt.pid)
       .sort((event0, event1) => event0.ts - event1.ts);
 
+    const mainThreadEvents = processEvents
+      .filter(e => e.tid === startedInPageEvt.tid);
+
     const traceEnd = trace.traceEvents.reduce((max, evt) => {
       return max.ts > evt.ts ? max : evt;
     });
@@ -110,7 +103,7 @@ class TraceOfTab extends ComputedArtifact {
       firstPaint,
       firstContentfulPaint,
       firstMeaningfulPaint,
-      traceEnd,
+      traceEnd: {ts: traceEnd.ts + (traceEnd.dur || 0)},
       onLoad,
       domContentLoaded,
     };
@@ -119,15 +112,16 @@ class TraceOfTab extends ComputedArtifact {
     const timestamps = {};
 
     Object.keys(metrics).forEach(metric => {
-      timestamps[metric] = metrics[metric] && metrics[metric].ts / 1000;
-      timings[metric] = timestamps[metric] - timestamps.navigationStart;
+      timestamps[metric] = metrics[metric] && metrics[metric].ts;
+      timings[metric] = (timestamps[metric] - navigationStart.ts) / 1000;
     });
 
     return {
       timings,
       timestamps,
       processEvents,
-      startedInPageEvt: startedInPageEvt,
+      mainThreadEvents,
+      startedInPageEvt,
       navigationStartEvt: navigationStart,
       firstPaintEvt: firstPaint,
       firstContentfulPaintEvt: firstContentfulPaint,

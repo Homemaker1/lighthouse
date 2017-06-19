@@ -1,18 +1,7 @@
 /**
- * @license
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license Copyright 2016 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 'use strict';
 
@@ -108,11 +97,12 @@ class Log {
    */
   static formatProtocol(prefix, data, level) {
     const columns = (!process || process.browser) ? Infinity : process.stdout.columns;
-    const maxLength = columns - data.method.length - prefix.length - loggingBufferColumns;
+    const method = data.method || '?????';
+    const maxLength = columns - method.length - prefix.length - loggingBufferColumns;
     // IO.read blacklisted here to avoid logging megabytes of trace data
-    const snippet = (data.params && data.method !== 'IO.read') ?
+    const snippet = (data.params && method !== 'IO.read') ?
       JSON.stringify(data.params).substr(0, maxLength) : '';
-    Log._logToStdErr(`${prefix}:${level || ''}`, [data.method, snippet]);
+    Log._logToStdErr(`${prefix}:${level || ''}`, [method, snippet]);
   }
 
   static log(title, ...args) {
